@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Family Organizer</title>
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Family%20Organizer%22%2C%22short_name%22%3A%22Familly%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23FFF8F0%22%2C%22theme_color%22%3A%22%23F4A261%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Ctext%20y%3D'.9em'%20font-size%3D'90'%3E%F0%9F%91%B6%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22100x100%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #FFF8F0;
+      color: #4A3F35;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 1rem 80px;
+    }
+    header {
+      text-align: center;
+      padding: 1.5rem 0 0.5rem;
+      position: relative;
+    }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: #D48B6A;
+      letter-spacing: -0.5px;
+    }
+    .date-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin: 0.8rem 0 0.2rem;
+    }
+    .date-nav button {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.3rem 0.6rem;
+      color: #C5865E;
+      transition: 0.2s;
+    }
+    .date-nav button:active { transform: scale(0.9); }
+    .current-date {
+      font-size: 1.1rem;
+      font-weight: 600;
+      min-width: 160px;
+      text-align: center;
+      background: white;
+      padding: 0.4rem 1rem;
+      border-radius: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .summary {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1rem 1.2rem;
+      margin: 1rem 0;
+      display: flex;
+      justify-content: space-around;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    .summary-item {
+      text-align: center;
+    }
+    .summary-item .value {
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+    .summary-item .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #9B8E82;
+    }
+    .sleep-banner {
+      background: #E5D1FF;
+      padding: 0.8rem 1.2rem;
+      border-radius: 2rem;
+      margin: 0.5rem 0 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+    .action-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      justify-content: center;
+      margin: 0.5rem 0 1rem;
+    }
+    .action-btn {
+      background: white;
+      border: 2px solid #EEE4D9;
+      border-radius: 2.5rem;
+      padding: 0.7rem 1.3rem;
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      transition: 0.2s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+    .action-btn:active { transform: scale(0.96); }
+    .action-btn.feeding { border-color: #FFB3B3; background: #FFE5E5; }
+    .action-btn.diaper { border-color: #B3D4FF; background: #E5F0FF; }
+    .action-btn.sleep { border-color: #D4B3FF; background: #F0E5FF; }
+    .events-list {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1rem 1.2rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+      list-style: none;
+      margin-bottom: 1rem;
+    }
+    .events-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid #F5EDE6;
+    }
+    .events-list li:last-child { border-bottom: none; }
+    .event-icon {
+      font-size: 1.8rem;
+      width: 2.5rem;
+      text-align: center;
+    }
+    .event-info {
+      flex: 1;
+      font-size: 0.95rem;
+    }
+    .event-time {
+      font-weight: 600;
+      margin-right: 0.3rem;
+    }
+    .event-detail { color: #7D6E63; }
+    .delete-btn {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      opacity: 0.5;
+      padding: 0.3rem;
+    }
+    .empty-day {
+      text-align: center;
+      color: #B7A99A;
+      padding: 1rem;
+      font-style: italic;
+    }
+    .nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 600px;
+      background: white;
+      display: flex;
+      justify-content: space-around;
+      padding: 0.5rem 0;
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.05);
+      border-radius: 2rem 2rem 0 0;
+      z-index: 10;
+    }
+    .nav-tab {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 0.8rem 1.2rem;
+      border-radius: 2rem;
+      color: #8B7A6B;
+      transition: 0.2s;
+    }
+    .nav-tab.active {
+      background: #F4E1D2;
+      color: #D48B6A;
+      font-weight: 700;
+    }
+    .panel {
+      display: none;
+    }
+    .panel.active {
+      display: block;
+    }
+    .list-panel {
+      padding: 1rem 0;
+    }
+    .list-section {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    .list-section h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.8rem;
+      color: #C5865E;
+    }
+    .add-item {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.8rem;
+    }
+    .add-item input {
+      flex: 1;
+      border: 2px solid #EFE4D9;
+      border-radius: 2rem;
+      padding: 0.6rem 1rem;
+      font-size: 0.95rem;
+    }
+    .add-item button {
+      background: #F4A261;
+      border: none;
+      border-radius: 2rem;
+      padding: 0.6rem 1.2rem;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .todo-item, .shop-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0;
+    }
+    .todo-item span, .shop-item span {
+      flex: 1;
+      font-size: 0.95rem;
+    }
+    .completed span { text-decoration: line-through; color: #B7A99A; }
+    .filter-btns {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.6rem;
+    }
+    .filter-btn {
+      background: #F4E1D2;
+      border: none;
+      padding: 0.3rem 0.8rem;
+      border-radius: 1rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .filter-btn.active {
+      background: #F4A261;
+      color: white;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>👶 Family Organizer</h1>
+    <div class="date-nav">
+      <button id="prevDay" aria-label="Jour précédent">◀</button>
+      <span class="current-date" id="currentDateDisplay"></span>
+      <button id="nextDay" aria-label="Jour suivant">▶</button>
+      <button id="todayBtn" style="font-size:0.9rem; background:#F4E1D2; border-radius:1rem; padding:0.3rem 0.8rem;">Aujourd'hui</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Panneau Suivi bébé -->
+    <div id="trackingPanel" class="panel active">
+      <div class="summary" id="dailySummary"></div>
+      <div id="sleepBanner" class="sleep-banner" style="display: none;"></div>
+      <div class="action-buttons">
+        <button class="action-btn feeding" id="addFeedingBtn">🍼 Tétée</button>
+        <button class="action-btn diaper" id="addDiaperBtn">💧 Couche</button>
+        <button class="action-btn sleep" id="toggleSleepBtn">😴 Dodo</button>
+      </div>
+      <ul class="events-list" id="eventsList"></ul>
+    </div>
+
+    <!-- Panneau Listes -->
+    <div id="listsPanel" class="panel list-panel">
+      <div class="list-section">
+        <h2>🛒 Courses</h2>
+        <div class="add-item">
+          <input type="text" id="shopInput" placeholder="Ajouter un article...">
+          <button id="addShopBtn">+</button>
+        </div>
+        <div id="shopList"></div>
+      </div>
+      <div class="list-section">
+        <h2>✅ Tâches</h2>
+        <div class="add-item">
+          <input type="text" id="taskInput" placeholder="Nouvelle tâche...">
+          <button id="addTaskBtn">+</button>
+        </div>
+        <div class="filter-btns">
+          <button class="filter-btn active" data-filter="all">Toutes</button>
+          <button class="filter-btn" data-filter="active">À faire</button>
+          <button class="filter-btn" data-filter="done">Fait</button>
+        </div>
+        <div id="taskList"></div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="nav-bar">
+    <button class="nav-tab active" data-panel="trackingPanel">📋 Suivi</button>
+    <button class="nav-tab" data-panel="listsPanel">📝 Listes</button>
+  </nav>
+
+  <script>
+    (function() {
+      // ---------- Stockage ----------
+      const STORAGE_EVENTS = 'family_events';
+      const STORAGE_SHOPPING = 'family_shopping';
+      const STORAGE_TASKS = 'family_tasks';
+
+      function loadEvents() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_EVENTS)) || []; }
+        catch { return []; }
+      }
+      function saveEvents(events) {
+        localStorage.setItem(STORAGE_EVENTS, JSON.stringify(events));
+      }
+      function loadShopping() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_SHOPPING)) || []; }
+        catch { return []; }
+      }
+      function saveShopping(list) {
+        localStorage.setItem(STORAGE_SHOPPING, JSON.stringify(list));
+      }
+      function loadTasks() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_TASKS)) || []; }
+        catch { return []; }
+      }
+      function saveTasks(list) {
+        localStorage.setItem(STORAGE_TASKS, JSON.stringify(list));
+      }
+
+      // ---------- État ----------
+      let events = loadEvents();
+      let shopping = loadShopping();
+      let tasks = loadTasks();
+      let currentDate = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+      let activePanel = 'trackingPanel';
+
+      // ---------- Utilitaires date ----------
+      function formatDateFr(dateStr) {
+        const [y,m,d] = dateStr.split('-');
+        const date = new Date(y, m-1, d);
+        return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+      }
+      function getTodayStr() {
+        return new Date().toISOString().slice(0,10);
+      }
+      function changeDay(delta) {
+        const d = new Date(currentDate + 'T12:00:00');
+        d.setDate(d.getDate() + delta);
+        const newDate = d.toISOString().slice(0,10);
+        if (newDate > getTodayStr()) return; // pas de futur
+        currentDate = newDate;
+        renderAll();
+      }
+      function goToday() {
+        currentDate = getTodayStr();
+        renderAll();
+      }
+
+      // ---------- Rendu Suivi ----------
+      function getDayEvents(dateStr) {
+        return events.filter(e => e.date === dateStr).sort((a,b) => a.startTime.localeCompare(b.startTime));
+      }
+      function getOngoingSleep() {
+        return events.find(e => e.type === 'sleep' && !e.endTime);
+      }
+      function renderTracking() {
+        const dayEvents = getDayEvents(currentDate);
+        document.getElementById('currentDateDisplay').textContent = formatDateFr(currentDate);
+        // Résumé
+        const feedings = dayEvents.filter(e => e.type === 'feeding').length;
+        const diapers = dayEvents.filter(e => e.type === 'diaper').length;
+        const sleepTotal = dayEvents.filter(e => e.type === 'sleep' && e.endTime)
+          .reduce((sum, e) => sum + (getDurationMinutes(e.startTime, e.endTime) || 0), 0);
+        const sleepHours = Math.floor(sleepTotal / 60);
+        const sleepMins = sleepTotal % 60;
+        document.getElementById('dailySummary').innerHTML = `
+          <div class="summary-item"><div class="value">🍼 ${feedings}</div><div class="label">Tétées</div></div>
+          <div class="summary-item"><div class="value">💧 ${diapers}</div><div class="label">Couches</div></div>
+          <div class="summary-item"><div class="value">😴 ${sleepHours}h${sleepMins.toString().padStart(2,'0')}</div><div class="label">Sommeil</div></div>
+        `;
+        // Bannière sommeil en cours
+        const ongoing = getOngoingSleep();
+        const banner = document.getElementById('sleepBanner');
+        if (ongoing) {
+          const elapsed = getDurationMinutes(ongoing.startTime, getCurrentTime());
+          const h = Math.floor(elapsed / 60);
+          const m = elapsed % 60;
+          banner.style.display = 'flex';
+          banner.innerHTML = `<span>😴 Bébé dort depuis ${h}h${m.toString().padStart(2,'0')}</span>
+            <button id="wakeUpBtn" style="background:#D4B3FF; border:none; padding:0.4rem 1rem; border-radius:2rem; font-weight:600;">⏰ Réveil</button>`;
+          document.getElementById('wakeUpBtn').addEventListener('click', wakeUp);
+          document.getElementById('toggleSleepBtn').textContent = '⏰ Réveil';
+        } else {
+          banner.style.display = 'none';
+          document.getElementById('toggleSleepBtn').textContent = '😴 Dodo';
+        }
+        // Liste événements
+        const listEl = document.getElementById('eventsList');
+        if (dayEvents.length === 0) {
+          listEl.innerHTML = '<div class="empty-day">Aucun événement ce jour</div>';
+        } else {
+          listEl.innerHTML = dayEvents.map(e => {
+            let icon = '', detail = '';
+            if (e.type === 'feeding') {
+              icon = e.subtype === 'bottle' ? '🍼' : '🤱';
+              detail = e.subtype === 'left' ? 'Sein gauche' : e.subtype === 'right' ? 'Sein droit' : 'Biberon';
+              if (e.durationMin) detail += ` · ${e.durationMin} min`;
+            } else if (e.type === 'diaper') {
+              icon = e.subtype === 'pee' ? '💧' : e.subtype === 'poop' ? '💩' : '💧💩';
+              detail = e.subtype === 'pee' ? 'Pipi' : e.subtype === 'poop' ? 'Caca' : 'Les deux';
+            } else if (e.type === 'sleep') {
+              icon = '😴';
+              if (e.endTime) {
+                const dur = getDurationMinutes(e.startTime, e.endTime);
+                const hh = Math.floor(dur/60), mm = dur%60;
+                detail = `Dodo ${hh}h${mm.toString().padStart(2,'0')}`;
+              } else {
+                detail = 'En cours...';
+              }
+            }
+            return `<li>
+              <span class="event-icon">${icon}</span>
+              <span class="event-info"><span class="event-time">${e.startTime}</span> <span class="event-detail">${detail}</span></span>
+              <button class="delete-btn" data-id="${e.id}">🗑️</button>
+            </li>`;
+          }).join('');
+          // Attacher les suppressions
+          listEl.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', (ev) => {
+              const id = Number(btn.dataset.id);
+              deleteEvent(id);
+            });
+          });
+        }
+      }
+
+      function getDurationMinutes(start, end) {
+        const [sh, sm] = start.split(':').map(Number);
+        const [eh, em] = end.split(':').map(Number);
+        return (eh*60 + em) - (sh*60 + sm);
+      }
+      function getCurrentTime() {
+        const now = new Date();
+        return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      }
+
+      function addEvent(type, subtype, extra = {}) {
+        const now = getCurrentTime();
+        const event = {
+          id: Date.now(),
+          type,
+          subtype,
+          date: currentDate,
+          startTime: now,
+          endTime: null,
+          durationMin: extra.durationMin || null
+        };
+        if (type === 'sleep') {
+          event.endTime = null; // sera rempli au réveil
+        }
+        events.push(event);
+        saveEvents(events);
+        renderAll();
+      }
+
+      function wakeUp() {
+        const ongoing = getOngoingSleep();
+        if (ongoing) {
+          ongoing.endTime = getCurrentTime();
+          saveEvents(events);
+          renderAll();
+        }
+      }
+
+      function deleteEvent(id) {
+        events = events.filter(e => e.id !== id);
+        saveEvents(events);
+        renderAll();
+      }
+
+      // ---------- Gestion formulaires rapides ----------
+      function showQuickForm(type) {
+        const time = getCurrentTime();
+        if (type === 'feeding') {
+          const subtype = prompt(`🍼 Tétée (${time})\nTapez :\n- g pour sein gauche\n- d pour sein droit\n- b pour biberon\n(ou laissez vide pour gauche)`, 'g');
+          if (subtype === null) return; // annulé
+          let sub;
+          if (subtype.toLowerCase().startsWith('d')) sub = 'right';
+          else if (subtype.toLowerCase().startsWith('b')) sub = 'bottle';
+          else sub = 'left';
+          const dur = prompt('Durée en minutes (optionnel) :', '');
+          const durationMin = dur && !isNaN(dur) ? parseInt(dur) : null;
+          addEvent('feeding', sub, { durationMin });
+        } else if (type === 'diaper') {
+          const subtype = prompt(`💧 Couche (${time})\nTapez :\n- p pour pipi\n- c pour caca\n- 2 pour les deux`, 'p');
+          if (subtype === null) return;
+          let sub;
+          if (subtype === '2' || subtype.toLowerCase() === 'deux') sub = 'both';
+          else if (subtype.toLowerCase().startsWith('c')) sub = 'poop';
+          else sub = 'pee';
+          addEvent('diaper', sub);
+        } else if (type === 'sleep') {
+          const ongoing = getOngoingSleep();
+          if (ongoing) {
+            if (confirm('Bébé se réveille ?')) wakeUp();
+          } else {
+            if (confirm(`😴 Commencer un dodo à ${time} ?`)) {
+              addEvent('sleep', 'nap');
+            }
+          }
+        }
+      }
+
+      // ---------- Rendu Listes ----------
+      function renderLists() {
+        // Courses
+        const shopDiv = document.getElementById('shopList');
+        shopDiv.innerHTML = shopping.map((item, idx) => `
+          <div class="shop-item ${item.done ? 'completed' : ''}">
+            <input type="checkbox" ${item.done ? 'checked' : ''} data-index="${idx}" class="shop-check">
+            <span>${item.text}</span>
+            <button class="delete-btn" data-index="${idx}" data-type="shop">🗑️</button>
+          </div>`).join('');
+        // Tâches
+        const taskFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+        const filteredTasks = tasks.filter(t => {
+          if (taskFilter === 'active') return !t.done;
+          if (taskFilter === 'done') return t.done;
+          return true;
+        });
+        const taskDiv = document.getElementById('taskList');
+        taskDiv.innerHTML = filteredTasks.map((item, idx) => {
+          const realIdx = tasks.indexOf(item);
+          return `<div class="todo-item ${item.done ? 'completed' : ''}">
+            <input type="checkbox" ${item.done ? 'checked' : ''} data-index="${realIdx}" class="task-check">
+            <span>${item.text}</span>
+            <button class="delete-btn" data-index="${realIdx}" data-type="task">🗑️</button>
+          </div>`;
+        }).join('');
+      }
+
+      function addShopItem() {
+        const input = document.getElementById('shopInput');
+        const text = input.value.trim();
+        if (!text) return;
+        shopping.push({ text, done: false });
+        saveShopping(shopping);
+        input.value = '';
+        renderLists();
+      }
+      function addTaskItem() {
+        const input = document.getElementById('taskInput');
+        const text = input.value.trim();
+        if (!text) return;
+        tasks.push({ text, done: false });
+        saveTasks(tasks);
+        input.value = '';
+        renderLists();
+      }
+      function toggleShopDone(index) {
+        shopping[index].done = !shopping[index].done;
+        saveShopping(shopping);
+        renderLists();
+      }
+      function toggleTaskDone(index) {
+          tasks[index].done = !tasks[index].done;
+        saveTasks(tasks);
+        renderLists();
+      }
+      function deleteListItem(type, index) {
+        if (type === 'shop') {
+          shopping.splice(index, 1);
+          saveShopping(shopping);
+        } else {
+          tasks.splice(index, 1);
+          saveTasks(tasks);
+        }
+        renderLists();
+      }
+
+      // ---------- Navigation onglets ----------
+      function switchPanel(panelId) {
+        activePanel = panelId;
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(panelId).classList.add('active');
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.nav-tab[data-panel="${panelId}"]`).classList.add('active');
+        if (panelId === 'listsPanel') renderLists();
+      }
+
+      // ---------- Mise à jour périodique (sommeil en cours) ----------
+      function startClock() {
+        setInterval(() => {
+          if (activePanel === 'trackingPanel' && getOngoingSleep()) {
+            renderTracking(); // rafraîchit la bannière
+          }
+        }, 30000); // toutes les 30 secondes
+      }
+
+      // ---------- Rendu global ----------
+      function renderAll() {
+        if (activePanel === 'trackingPanel') renderTracking();
+        else renderLists();
+      }
+
+      // ---------- Écouteurs d'événements ----------
+      document.getElementById('prevDay').addEventListener('click', () => changeDay(-1));
+      document.getElementById('nextDay').addEventListener('click', () => changeDay(1));
+      document.getElementById('todayBtn').addEventListener('click', goToday);
+      document.getElementById('addFeedingBtn').addEventListener('click', () => showQuickForm('feeding'));
+      document.getElementById('addDiaperBtn').addEventListener('click', () => showQuickForm('diaper'));
+      document.getElementById('toggleSleepBtn').addEventListener('click', () => showQuickForm('sleep'));
+
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchPanel(tab.dataset.panel));
+      });
+
+      // Listes
+      document.getElementById('addShopBtn').addEventListener('click', addShopItem);
+      document.getElementById('addTaskBtn').addEventListener('click', addTaskItem);
+      document.getElementById('shopInput').addEventListener('keypress', e => { if (e.key === 'Enter') addShopItem(); });
+      document.getElementById('taskInput').addEventListener('keypress', e => { if (e.key === 'Enter') addTaskItem(); });
+
+      document.getElementById('shopList').addEventListener('click', e => {
+        if (e.target.classList.contains('shop-check')) {
+          toggleShopDone(parseInt(e.target.dataset.index));
+        } else if (e.target.classList.contains('delete-btn')) {
+          deleteListItem('shop', parseInt(e.target.dataset.index));
+        }
+      });
+      document.getElementById('taskList').addEventListener('click', e => {
+        if (e.target.classList.contains('task-check')) {
+          toggleTaskDone(parseInt(e.target.dataset.index));
+        } else if (e.target.classList.contains('delete-btn')) {
+          deleteListItem('task', parseInt(e.target.dataset.index));
+        }
+      });
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          renderLists();
+        });
+      });
+
+      // Initialisation
+      renderAll();
+      startClock();
+
+      // ---------- Service Worker (PWA) ----------
+      if ('serviceWorker' in navigator) {
+        const swCode = `
+          const CACHE = 'family-v1';
+          self.addEventListener('install', e => {
+            e.waitUntil(
+              caches.open(CACHE).then(cache => cache.addAll(['./']))
+            );
+          });
+          self.addEventListener('fetch', e => {
+            e.respondWith(
+              caches.match(e.request).then(resp => resp || fetch(e.request))
+            );
+          });
+        `;
+        const blob = new Blob([swCode], {type: 'application/javascript'});
+        const swUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(swUrl, {scope: './'}).catch(() => {});
+      }
+    })();
+  </script>
+</body>
+</html>
