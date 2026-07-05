@@ -322,27 +322,35 @@
       const STORAGE_SHOPPING = 'family_shopping';
       const STORAGE_TASKS = 'family_tasks';
 
-      function loadEvents() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_EVENTS)) || []; }
-        catch { return []; }
+      function loadFromStorage(key) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw === null) return [];
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) {
+            console.warn(`[Family] Données corrompues dans "${key}" (type attendu: tableau). Réinitialisation.`);
+            return [];
+          }
+          return parsed;
+        } catch (err) {
+          console.error(`[Family] Impossible de lire "${key}" depuis localStorage :`, err);
+          return [];
+        }
       }
-      function saveEvents(events) {
-        localStorage.setItem(STORAGE_EVENTS, JSON.stringify(events));
+      function saveToStorage(key, data) {
+        try {
+          localStorage.setItem(key, JSON.stringify(data));
+        } catch (err) {
+          console.error(`[Family] Impossible de sauvegarder "${key}" :`, err);
+          alert('Erreur de sauvegarde : le stockage est peut-être plein. Vos dernières modifications n\'ont pas été enregistrées.');
+        }
       }
-      function loadShopping() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_SHOPPING)) || []; }
-        catch { return []; }
-      }
-      function saveShopping(list) {
-        localStorage.setItem(STORAGE_SHOPPING, JSON.stringify(list));
-      }
-      function loadTasks() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_TASKS)) || []; }
-        catch { return []; }
-      }
-      function saveTasks(list) {
-        localStorage.setItem(STORAGE_TASKS, JSON.stringify(list));
-      }
+      function loadEvents() { return loadFromStorage(STORAGE_EVENTS); }
+      function saveEvents(evts) { saveToStorage(STORAGE_EVENTS, evts); }
+      function loadShopping() { return loadFromStorage(STORAGE_SHOPPING); }
+      function saveShopping(list) { saveToStorage(STORAGE_SHOPPING, list); }
+      function loadTasks() { return loadFromStorage(STORAGE_TASKS); }
+      function saveTasks(list) { saveToStorage(STORAGE_TASKS, list); }
 
       // ---------- État ----------
       let events = loadEvents();
@@ -452,9 +460,18 @@
       }
 
       function getDurationMinutes(start, end) {
+        if (typeof start !== 'string' || typeof end !== 'string') {
+          console.warn('[Family] getDurationMinutes : paramètre invalide', { start, end });
+          return 0;
+        }
         const [sh, sm] = start.split(':').map(Number);
         const [eh, em] = end.split(':').map(Number);
-        return (eh*60 + em) - (sh*60 + sm);
+        if ([sh, sm, eh, em].some(v => isNaN(v))) {
+          console.warn('[Family] getDurationMinutes : format horaire invalide', { start, end });
+          return 0;
+        }
+        const diff = (eh * 60 + em) - (sh * 60 + sm);
+        return diff < 0 ? diff + 1440 : diff;
       }
       function getCurrentTime() {
         const now = new Date();
@@ -575,16 +592,29 @@
         renderLists();
       }
       function toggleShopDone(index) {
+        if (index < 0 || index >= shopping.length) {
+          console.warn('[Family] toggleShopDone : index hors limites', index);
+          return;
+        }
         shopping[index].done = !shopping[index].done;
         saveShopping(shopping);
         renderLists();
       }
       function toggleTaskDone(index) {
-          tasks[index].done = !tasks[index].done;
+        if (index < 0 || index >= tasks.length) {
+          console.warn('[Family] toggleTaskDone : index hors limites', index);
+          return;
+        }
+        tasks[index].done = !tasks[index].done;
         saveTasks(tasks);
         renderLists();
       }
       function deleteListItem(type, index) {
+        const list = type === 'shop' ? shopping : tasks;
+        if (index < 0 || index >= list.length) {
+          console.warn(`[Family] deleteListItem : index hors limites (${type})`, index);
+          return;
+        }
         if (type === 'shop') {
           shopping.splice(index, 1);
           saveShopping(shopping);
@@ -597,11 +627,17 @@
 
       // ---------- Navigation onglets ----------
       function switchPanel(panelId) {
+        const panel = document.getElementById(panelId);
+        const tab = document.querySelector(`.nav-tab[data-panel="${panelId}"]`);
+        if (!panel || !tab) {
+          console.error('[Family] switchPanel : panneau ou onglet introuvable', panelId);
+          return;
+        }
         activePanel = panelId;
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-        document.getElementById(panelId).classList.add('active');
+        panel.classList.add('active');
         document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-        document.querySelector(`.nav-tab[data-panel="${panelId}"]`).classList.add('active');
+        tab.classList.add('active');
         if (panelId === 'listsPanel') renderLists();
       }
 
@@ -639,17 +675,21 @@
       document.getElementById('taskInput').addEventListener('keypress', e => { if (e.key === 'Enter') addTaskItem(); });
 
       document.getElementById('shopList').addEventListener('click', e => {
+        const idx = parseInt(e.target.dataset.index, 10);
+        if (isNaN(idx)) return;
         if (e.target.classList.contains('shop-check')) {
-          toggleShopDone(parseInt(e.target.dataset.index));
+          toggleShopDone(idx);
         } else if (e.target.classList.contains('delete-btn')) {
-          deleteListItem('shop', parseInt(e.target.dataset.index));
+          deleteListItem('shop', idx);
         }
       });
       document.getElementById('taskList').addEventListener('click', e => {
+        const idx = parseInt(e.target.dataset.index, 10);
+        if (isNaN(idx)) return;
         if (e.target.classList.contains('task-check')) {
-          toggleTaskDone(parseInt(e.target.dataset.index));
+          toggleTaskDone(idx);
         } else if (e.target.classList.contains('delete-btn')) {
-          deleteListItem('task', parseInt(e.target.dataset.index));
+          deleteListItem('task', idx);
         }
       });
       document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -681,7 +721,9 @@
         `;
         const blob = new Blob([swCode], {type: 'application/javascript'});
         const swUrl = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(swUrl, {scope: './'}).catch(() => {});
+        navigator.serviceWorker.register(swUrl, {scope: './'}).catch(err => {
+          console.warn('[Family] Enregistrement du Service Worker échoué :', err);
+        });
       }
     })();
   </script>
