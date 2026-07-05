@@ -317,6 +317,16 @@
 
   <script>
     (function() {
+      // ---------- Utilitaires sécurité ----------
+      function escapeHtml(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
       // ---------- Stockage ----------
       const STORAGE_EVENTS = 'family_events';
       const STORAGE_SHOPPING = 'family_shopping';
@@ -535,7 +545,7 @@
         shopDiv.innerHTML = shopping.map((item, idx) => `
           <div class="shop-item ${item.done ? 'completed' : ''}">
             <input type="checkbox" ${item.done ? 'checked' : ''} data-index="${idx}" class="shop-check">
-            <span>${item.text}</span>
+            <span>${escapeHtml(item.text)}</span>
             <button class="delete-btn" data-index="${idx}" data-type="shop">🗑️</button>
           </div>`).join('');
         // Tâches
@@ -550,7 +560,7 @@
           const realIdx = tasks.indexOf(item);
           return `<div class="todo-item ${item.done ? 'completed' : ''}">
             <input type="checkbox" ${item.done ? 'checked' : ''} data-index="${realIdx}" class="task-check">
-            <span>${item.text}</span>
+            <span>${escapeHtml(item.text)}</span>
             <button class="delete-btn" data-index="${realIdx}" data-type="task">🗑️</button>
           </div>`;
         }).join('');
