@@ -307,6 +307,14 @@
         </div>
         <div id="taskList"></div>
       </div>
+      <div class="list-section">
+        <h2>💾 Données</h2>
+        <div class="add-item">
+          <button id="exportBtn">⬇️ Exporter</button>
+          <button id="importBtn">⬆️ Importer</button>
+          <input type="file" id="importFile" accept="application/json" style="display:none">
+        </div>
+      </div>
     </div>
   </main>
 
@@ -332,33 +340,50 @@
       const STORAGE_SHOPPING = 'family_shopping';
       const STORAGE_TASKS = 'family_tasks';
 
+      function genId() {
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+      }
+      function persist(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+          return true;
+        } catch (e) {
+          alert('Espace de stockage insuffisant : la sauvegarde a échoué.');
+          return false;
+        }
+      }
+      function normalizeItem(it) {
+        return { id: (it && it.id) || genId(), text: it ? it.text : '', done: !!(it && it.done) };
+      }
+
       function loadEvents() {
         try { return JSON.parse(localStorage.getItem(STORAGE_EVENTS)) || []; }
         catch { return []; }
       }
       function saveEvents(events) {
-        localStorage.setItem(STORAGE_EVENTS, JSON.stringify(events));
+        persist(STORAGE_EVENTS, events);
       }
       function loadShopping() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_SHOPPING)) || []; }
+        try { return (JSON.parse(localStorage.getItem(STORAGE_SHOPPING)) || []).map(normalizeItem); }
         catch { return []; }
       }
       function saveShopping(list) {
-        localStorage.setItem(STORAGE_SHOPPING, JSON.stringify(list));
+        persist(STORAGE_SHOPPING, list);
       }
       function loadTasks() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_TASKS)) || []; }
+        try { return (JSON.parse(localStorage.getItem(STORAGE_TASKS)) || []).map(normalizeItem); }
         catch { return []; }
       }
       function saveTasks(list) {
-        localStorage.setItem(STORAGE_TASKS, JSON.stringify(list));
+        persist(STORAGE_TASKS, list);
       }
 
       // ---------- État ----------
       let events = loadEvents();
       let shopping = loadShopping();
       let tasks = loadTasks();
-      let currentDate = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+      let currentDate = getTodayStr(); // YYYY-MM-DD (date locale)
       let activePanel = 'trackingPanel';
 
       // ---------- Utilitaires date ----------
@@ -368,12 +393,13 @@
         return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
       }
       function getTodayStr() {
-        return new Date().toISOString().slice(0,10);
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
       }
       function changeDay(delta) {
         const d = new Date(currentDate + 'T12:00:00');
         d.setDate(d.getDate() + delta);
-        const newDate = d.toISOString().slice(0,10);
+        const newDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         if (newDate > getTodayStr()) return; // pas de futur
         currentDate = newDate;
         renderAll();
@@ -388,7 +414,7 @@
         return events.filter(e => e.date === dateStr).sort((a,b) => a.startTime.localeCompare(b.startTime));
       }
       function getOngoingSleep() {
-        return events.find(e => e.type === 'sleep' && !e.endTime);
+        return events.find(e => e.type === 'sleep' && !e.endTime && e.date === currentDate);
       }
       function renderTracking() {
         const dayEvents = getDayEvents(currentDate);
@@ -454,8 +480,7 @@
           // Attacher les suppressions
           listEl.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', (ev) => {
-              const id = Number(btn.dataset.id);
-              deleteEvent(id);
+              deleteEvent(btn.dataset.id);
             });
           });
         }
@@ -464,7 +489,9 @@
       function getDurationMinutes(start, end) {
         const [sh, sm] = start.split(':').map(Number);
         const [eh, em] = end.split(':').map(Number);
-        return (eh*60 + em) - (sh*60 + sm);
+        let diff = (eh*60 + em) - (sh*60 + sm);
+        if (diff < 0) diff += 24 * 60; // franchissement de minuit
+        return diff;
       }
       function getCurrentTime() {
         const now = new Date();
@@ -474,7 +501,7 @@
       function addEvent(type, subtype, extra = {}) {
         const now = getCurrentTime();
         const event = {
-          id: Date.now(),
+          id: genId(),
           type,
           subtype,
           date: currentDate,
@@ -500,7 +527,7 @@
       }
 
       function deleteEvent(id) {
-        events = events.filter(e => e.id !== id);
+        events = events.filter(e => String(e.id) !== String(id));
         saveEvents(events);
         renderAll();
       }
@@ -516,7 +543,7 @@
           else if (subtype.toLowerCase().startsWith('b')) sub = 'bottle';
           else sub = 'left';
           const dur = prompt('Durée en minutes (optionnel) :', '');
-          const durationMin = dur && !isNaN(dur) ? parseInt(dur) : null;
+          const durationMin = dur && !isNaN(dur) && parseInt(dur) > 0 ? parseInt(dur) : null;
           addEvent('feeding', sub, { durationMin });
         } else if (type === 'diaper') {
           const subtype = prompt(`💧 Couche (${time})\nTapez :\n- p pour pipi\n- c pour caca\n- 2 pour les deux`, 'p');
@@ -542,11 +569,11 @@
       function renderLists() {
         // Courses
         const shopDiv = document.getElementById('shopList');
-        shopDiv.innerHTML = shopping.map((item, idx) => `
+        shopDiv.innerHTML = shopping.map(item => `
           <div class="shop-item ${item.done ? 'completed' : ''}">
-            <input type="checkbox" ${item.done ? 'checked' : ''} data-index="${idx}" class="shop-check">
+            <input type="checkbox" ${item.done ? 'checked' : ''} data-id="${item.id}" class="shop-check">
             <span>${escapeHtml(item.text)}</span>
-            <button class="delete-btn" data-index="${idx}" data-type="shop">🗑️</button>
+            <button class="delete-btn" data-id="${item.id}" data-type="shop">🗑️</button>
           </div>`).join('');
         // Tâches
         const taskFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
@@ -556,21 +583,19 @@
           return true;
         });
         const taskDiv = document.getElementById('taskList');
-        taskDiv.innerHTML = filteredTasks.map((item, idx) => {
-          const realIdx = tasks.indexOf(item);
-          return `<div class="todo-item ${item.done ? 'completed' : ''}">
-            <input type="checkbox" ${item.done ? 'checked' : ''} data-index="${realIdx}" class="task-check">
+        taskDiv.innerHTML = filteredTasks.map(item => `
+          <div class="todo-item ${item.done ? 'completed' : ''}">
+            <input type="checkbox" ${item.done ? 'checked' : ''} data-id="${item.id}" class="task-check">
             <span>${escapeHtml(item.text)}</span>
-            <button class="delete-btn" data-index="${realIdx}" data-type="task">🗑️</button>
-          </div>`;
-        }).join('');
+            <button class="delete-btn" data-id="${item.id}" data-type="task">🗑️</button>
+          </div>`).join('');
       }
 
       function addShopItem() {
         const input = document.getElementById('shopInput');
         const text = input.value.trim();
         if (!text) return;
-        shopping.push({ text, done: false });
+        shopping.push({ id: genId(), text, done: false });
         saveShopping(shopping);
         input.value = '';
         renderLists();
@@ -579,30 +604,67 @@
         const input = document.getElementById('taskInput');
         const text = input.value.trim();
         if (!text) return;
-        tasks.push({ text, done: false });
+        tasks.push({ id: genId(), text, done: false });
         saveTasks(tasks);
         input.value = '';
         renderLists();
       }
-      function toggleShopDone(index) {
-        shopping[index].done = !shopping[index].done;
+      function toggleShopDone(id) {
+        const item = shopping.find(i => String(i.id) === String(id));
+        if (!item) return;
+        item.done = !item.done;
         saveShopping(shopping);
         renderLists();
       }
-      function toggleTaskDone(index) {
-          tasks[index].done = !tasks[index].done;
+      function toggleTaskDone(id) {
+        const item = tasks.find(i => String(i.id) === String(id));
+        if (!item) return;
+        item.done = !item.done;
         saveTasks(tasks);
         renderLists();
       }
-      function deleteListItem(type, index) {
+      function deleteListItem(type, id) {
         if (type === 'shop') {
-          shopping.splice(index, 1);
+          shopping = shopping.filter(i => String(i.id) !== String(id));
           saveShopping(shopping);
         } else {
-          tasks.splice(index, 1);
+          tasks = tasks.filter(i => String(i.id) !== String(id));
           saveTasks(tasks);
         }
         renderLists();
+      }
+
+      // ---------- Export / Import ----------
+      function exportData() {
+        const data = { events, shopping, tasks, exportedAt: new Date().toISOString() };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `family-organizer-${getTodayStr()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      function importData(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const data = JSON.parse(reader.result);
+            if (Array.isArray(data.events)) events = data.events;
+            if (Array.isArray(data.shopping)) shopping = data.shopping.map(normalizeItem);
+            if (Array.isArray(data.tasks)) tasks = data.tasks.map(normalizeItem);
+            saveEvents(events);
+            saveShopping(shopping);
+            saveTasks(tasks);
+            renderAll();
+            alert('Données importées avec succès.');
+          } catch (e) {
+            alert('Fichier invalide : import impossible.');
+          }
+        };
+        reader.readAsText(file);
       }
 
       // ---------- Navigation onglets ----------
@@ -650,17 +712,24 @@
 
       document.getElementById('shopList').addEventListener('click', e => {
         if (e.target.classList.contains('shop-check')) {
-          toggleShopDone(parseInt(e.target.dataset.index));
+          toggleShopDone(e.target.dataset.id);
         } else if (e.target.classList.contains('delete-btn')) {
-          deleteListItem('shop', parseInt(e.target.dataset.index));
+          deleteListItem('shop', e.target.dataset.id);
         }
       });
       document.getElementById('taskList').addEventListener('click', e => {
         if (e.target.classList.contains('task-check')) {
-          toggleTaskDone(parseInt(e.target.dataset.index));
+          toggleTaskDone(e.target.dataset.id);
         } else if (e.target.classList.contains('delete-btn')) {
-          deleteListItem('task', parseInt(e.target.dataset.index));
+          deleteListItem('task', e.target.dataset.id);
         }
+      });
+
+      document.getElementById('exportBtn').addEventListener('click', exportData);
+      document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+      document.getElementById('importFile').addEventListener('change', e => {
+        if (e.target.files[0]) importData(e.target.files[0]);
+        e.target.value = '';
       });
       document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -676,22 +745,9 @@
 
       // ---------- Service Worker (PWA) ----------
       if ('serviceWorker' in navigator) {
-        const swCode = `
-          const CACHE = 'family-v1';
-          self.addEventListener('install', e => {
-            e.waitUntil(
-              caches.open(CACHE).then(cache => cache.addAll(['./']))
-            );
-          });
-          self.addEventListener('fetch', e => {
-            e.respondWith(
-              caches.match(e.request).then(resp => resp || fetch(e.request))
-            );
-          });
-        `;
-        const blob = new Blob([swCode], {type: 'application/javascript'});
-        const swUrl = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(swUrl, {scope: './'}).catch(() => {});
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
+        });
       }
     })();
   </script>
